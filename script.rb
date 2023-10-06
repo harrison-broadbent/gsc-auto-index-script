@@ -1,0 +1,82 @@
+require "googleauth" # google client login
+require "google/apis/searchconsole_v1"
+require "open-uri" # sitemap parsing
+require "xmlsimple"
+require "tty-prompt" # terminal prompts
+
+# Preface: functions we use later on #
+def get_all_site_urls(service)
+  sites = service.list_sites
+  sites.site_entry.map { |site| site.site_url }
+end
+
+# site_url: string: "https://example.com" | "sc-domain:example.com"
+def get_sitemap_url(service, site_url)
+  sitemaps = service.list_sitemaps(site_url)
+  sitemaps.sitemap[0].path
+end
+
+def get_all_pages_from_sitemap(url)
+  xml_data = URI.open(url).read
+  data = XmlSimple.xml_in(xml_data)
+  links = data["url"].map { |url| url["loc"][0] }
+end
+
+def submit_index_request(service, site_url, page_url)
+  request = Google::Apis::SearchconsoleV1::InspectUrlIndexRequest.new
+  request.inspection_url = page_url
+  request.site_url = site_url
+  response = service.inspect_url_index(request)
+
+  return response
+end
+
+# Step 0: Get setup in Google Cloud and Google Search Console
+# Create a new service account —
+# - Visit https://console.cloud.google.com/iam-admin/serviceaccounts and create a new service account
+# - Click "Actions" > "Manage keys" > "Add key" > "Create new key" > "JSON", and move the ".json" file into the same directory as this script
+# - Edit "service_account_file" to match the name of your key — 
+#
+service_account_file = "gsc-index-400005-b3da9e3fd4fc.json"
+#
+# - Invite your service account into your Google Search Console
+# - Search Console > "Settings" > "Users and Permissions" > "Add User" and enter the email of your service account
+#   - ie: "example@project-400005.iam.gserviceaccount.com"
+#   - Set permissions to "Owner"
+
+# Step 1: Create and auth client with Google APIs
+scope = "https://www.googleapis.com/auth/webmasters"
+authorizer = Google::Auth::ServiceAccountCredentials.make_creds(
+  json_key_io: File.open(service_account_file),
+  scope: scope,
+)
+
+authorizer.fetch_access_token!
+service = Google::Apis::SearchconsoleV1::SearchConsoleService.new
+service.authorization = authorizer
+
+# Step 2: Run app
+prompt = TTY::Prompt.new
+
+# pick a site from all the ones we have access to
+all_site_urls = get_all_site_urls(service)
+selected_site_url = prompt.select("Select a site — ", all_site_urls)
+
+# get the sitemap URL from GSC, then parse it an extract all pages
+sitemap_url = get_sitemap_url(service, selected_site_url)
+sitemap_pages = get_all_pages_from_sitemap(sitemap_url)
+pp "Found #{sitemap_pages.count} pages in sitemap for #{selected_site_url} — "
+pp sitemap_pages
+
+should_index = prompt.yes?("Should we submit all these pages for (re)indexing?")
+if should_index
+  sitemap_pages.each do |page|
+    response = submit_index_request(service, selected_site_url, page)
+
+    current_status = response.inspection_result.index_status_result.coverage_state
+    last_crawled = response.inspection_result.index_status_result.last_crawl_time
+    pp "(#{page}) | Current status: #{current_status} | Last crawled: #{last_crawled.nil? ? "never" : Time.new(last_crawled).localtime}"
+  end
+end
+
+pp "indexed #{sitemap_pages.count} pages for #{selected_site_url}"
