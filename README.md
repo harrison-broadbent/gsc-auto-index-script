@@ -1,1 +1,1 @@
-# gsc-auto-indexer (Google Search Console auto-indexing script)
+# Google Search Console auto-indexing script (`gsc-auto-indexer`)
