@@ -10,18 +10,21 @@ def get_all_site_urls(service)
   sites.site_entry.map { |site| site.site_url }
 end
 
+# Get the sitemap URL from within Google Search Console, for a selected site
 # site_url: string: "https://example.com" | "sc-domain:example.com"
 def get_sitemap_url(service, site_url)
   sitemaps = service.list_sitemaps(site_url)
   sitemaps.sitemap[0].path
 end
 
+# Get and parse the sitemap of a URL into individual URLs
 def get_all_pages_from_sitemap(url)
   xml_data = URI.open(url).read
   data = XmlSimple.xml_in(xml_data)
   links = data["url"].map { |url| url["loc"][0] }
 end
 
+# Submit a single page url for indexing to Google Search Console
 def submit_index_request(service, site_url, page_url)
   request = Google::Apis::SearchconsoleV1::InspectUrlIndexRequest.new
   request.inspection_url = page_url
