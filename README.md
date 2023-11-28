@@ -46,3 +46,17 @@ Setting up this script is easy. You just need to create a (free) Google Cloud se
 
    - Run `ruby script.rb` to start the script. It will automatically pull in the sites available in your Google Search Console, and let you choose between them.
    - Once you choose a site, it will parse the sitemap (from the URL within Google Search Console), and submit each page for indexing.
+
+## Optional Configuration and Flags
+
+### `INDEX_FROM_CSV`
+
+If this flag is set `true`, the script will look for a CSV file called `urls.csv`. This file should contain a comma-separated list of URLs to index, like this —
+
+```csv
+https://example.com,https://example.com/about
+```
+
+This can be helpful for sites with a massive number of pages, so you can index a subset rather than all of them.
+
+By default, this flag is set `false`.
