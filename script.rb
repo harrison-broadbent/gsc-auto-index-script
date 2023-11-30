@@ -11,7 +11,7 @@ require "csv" # optional csv parsing
 # If this is set to true, the script read from a CSV file called "urls.csv"
 # This file should contain URLs that you want to index for your site.
 # If this flag is true, we will SKIP parsing your sitemap and just use the urls.csv values directly.
-INDEX_FROM_CSV = true
+INDEX_FROM_CSV = false
 
 # Preface: functions we use later on #
 def get_all_site_urls(service)
